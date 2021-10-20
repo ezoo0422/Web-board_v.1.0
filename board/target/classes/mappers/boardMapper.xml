@@ -1,0 +1,102 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+  PUBLIC "-//mybatis.org//DTD Config 3.0//EN"
+  "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="board">
+
+	<!-- 게시글 조회 (paging, search) -->
+	<select id="boardList" resultType="boardVO">
+		SELECT BOARD_SEQ AS sequence,
+			   BOARD_WRITER AS writer,
+			   BOARD_SUBJECT AS title,
+			   BOARD_CONTENT AS content,
+			   INS_DATE AS writeTime,
+			   BOARD_CNT AS viewCnt,
+			   ( SELECT COUNT(BOARD_SEQ) 
+			   	   FROM REPLY 
+			   	  WHERE BOARD_SEQ=A.BOARD_SEQ ) replyCnt
+		  FROM ( SELECT BOARD_SEQ,
+					    BOARD_WRITER,
+					    BOARD_SUBJECT,
+					    BOARD_CONTENT,
+					    INS_DATE,
+					    BOARD_CNT
+			       FROM BOARD
+			<choose>
+				<when test="searchOption == 'all'">
+				  WHERE BOARD_SUBJECT LIKE CONCAT('%',#{keyword},'%')
+					 OR BOARD_CONTENT LIKE CONCAT('%',#{keyword},'%')
+					 OR BOARD_WRITER LIKE CONCAT('%',#{keyword},'%')
+				</when>
+				<otherwise>
+				  WHERE ${searchOption} LIKE CONCAT('%',#{keyword},'%')
+				</otherwise>
+			</choose>
+			   ) A
+	     ORDER BY INS_DATE DESC, BOARD_SEQ DESC
+		 LIMIT #{start}, #{pageScale};
+	</select>
+	
+	<!-- 게시글 작성 -->
+	<insert id="insert" useGeneratedKeys="true">
+		INSERT INTO BOARD ( BOARD_SUBJECT,
+							BOARD_WRITER,
+							BOARD_CONTENT,
+							INS_DATE
+				 ) VALUES ( #{title},
+							#{writer},
+							#{content},
+							DEFAULT
+						  )
+	</insert>
+
+	<!-- 게시글 상세 조회 -->
+	<select id="view" resultType="boardVO">
+		SELECT BOARD_SEQ AS sequence,
+			   BOARD_WRITER AS writer,
+			   BOARD_SUBJECT AS title,
+		       BOARD_CONTENT AS content,
+			   INS_DATE AS writeTime,
+			   BOARD_CNT AS viewCnt
+		  FROM BOARD
+		 WHERE BOARD_SEQ = #{sequence}
+	</select>
+
+	<!-- 게시글 수정 -->
+	<update id="update">
+		UPDATE BOARD SET BOARD_SUBJECT = #{title},
+						 BOARD_WRITER = #{writer},
+					 	 BOARD_CONTENT = #{content},
+						 INS_DATE = CURRENT_TIMESTAMP()
+				   WHERE BOARD_SEQ = #{sequence}
+	</update>
+
+	<!-- 게시글 삭제 -->
+	<delete id="delete">
+		DELETE FROM BOARD
+		      WHERE BOARD_SEQ = #{sequence}
+	</delete>
+
+	<!-- 조회수 증가 -->
+	<update id="updateCnt">
+		UPDATE BOARD SET BOARD_CNT = BOARD_CNT + 1
+				   WHERE BOARD_SEQ = #{sequence}
+	</update>
+
+	<!-- 게시글 수 조회 -->
+	<select id="countBoard" resultType="int">
+		SELECT COUNT(BOARD_SEQ)
+		  FROM BOARD
+		<choose>
+			<when test="searchOption == 'all'">
+				WHERE BOARD_SUBJECT LIKE CONCAT('%',#{keyword},'%')
+				   OR BOARD_CONTENT LIKE CONCAT('%',#{keyword},'%')
+				   OR BOARD_WRITER LIKE CONCAT('%',#{keyword},'%')
+			</when>
+			<otherwise>
+			    WHERE ${searchOption} LIKE CONCAT('%',#{keyword},'%')
+			</otherwise>
+		</choose>
+	</select>
+</mapper>
